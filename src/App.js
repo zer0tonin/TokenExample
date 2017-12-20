@@ -13,7 +13,7 @@ class App extends Component {
 
     this.state = {
       tokens: 0,
-      web3: null
+      addressTo: 0
     }
   }
 
@@ -23,29 +23,44 @@ class App extends Component {
 
     getWeb3
     .then(results => {
-      this.setState({
-        web3: results.web3
-      })
+      this.web3 = results.web3;
 
       // Instantiate contract once web3 provided.
-      this.instantiateContract()
+      this.instantiateContract();
     })
-    .catch(() => {
-      console.log('Error finding web3.')
+    .catch(error => {
+      console.log(error);
     })
   }
 
   instantiateContract() {
-    const contract = require('truffle-contract')
-    const myToken = contract(MyTokenContract);
-    myToken.setProvider(this.state.web3.currentProvider)
+    const contract = require('truffle-contract');
+    this.myToken = contract(MyTokenContract);
+    this.myToken.setProvider(this.web3.currentProvider);
+    this.getBalance();
+  }
 
-    // Get accounts.
-    this.state.web3.eth.getAccounts((error, accounts) => {
-      myToken.deployed()
+  getBalance() {
+    this.web3.eth.getAccounts((error, accounts) =>
+      this.myToken.deployed()
         .then(instance => instance.balanceOf(accounts[0]))
         .then(balance => this.setState({tokens: balance}))
-    })
+        .catch(error => {
+          console.log(error);
+        })
+    );
+  }
+
+  sendToken() {
+    this.web3.eth.getAccounts((error, accounts) => {
+      this.myToken.deployed()
+        .then(instance => instance.transfer(this.state.addressTo, 1, {from: accounts[0]}))
+        .then(() => this.getBalance())
+        .catch(error => {
+          console.log(error);
+        })
+    }
+    );
   }
 
   render() {
@@ -59,6 +74,10 @@ class App extends Component {
           <div className="pure-g">
             <div className="pure-u-1-1">
               <h1>You own : {this.state.tokens.toString(10)} tokens</h1>
+              <input name="addressTo" value={this.state.addressTo} onChange={event => this.setState({addressTo: event.target.value})}/>
+              <button className="pure-button" onClick={() => this.sendToken()}>
+                Send a token!
+              </button>
             </div>
           </div>
         </main>
